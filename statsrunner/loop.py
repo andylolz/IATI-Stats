@@ -4,9 +4,12 @@ import inspect
 import json
 import sys
 import traceback
+from rq import Queue
 import statsrunner.shared
 import statsrunner.aggregate
 from statsrunner.common import decimal_default
+
+from worker import conn
 
 
 def call_stats(this_stats, args):
@@ -158,9 +161,6 @@ def loop(args):
         for folder in os.listdir(args.data):
             files += loop_folder(folder, args, data_dir=args.data, output_dir=args.output)
 
-    if args.multi > 1:
-        from multiprocessing import Pool
-        pool = Pool(args.multi)
-        pool.map(process_file, files)
-    else:
-        map(process_file, files)
+    q = Queue(connection=conn)
+    for file in files:
+        q.enqueue(process_file, file, result_ttl=0)

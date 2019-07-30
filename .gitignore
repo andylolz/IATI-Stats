@@ -9,3 +9,4 @@ pyenv
 *.pyc
 *.swp
 *.pyo
+*.rdb

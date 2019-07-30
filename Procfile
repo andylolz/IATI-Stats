@@ -1,0 +1,10 @@
+worker: python worker.py
+worker2: python worker.py
+worker3: python worker.py
+worker4: python worker.py
+worker5: python worker.py
+worker6: python worker.py
+worker7: python worker.py
+worker8: python worker.py
+worker9: python worker.py
+worker10: python worker.py
