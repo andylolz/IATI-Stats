@@ -1,0 +1,35 @@
+[submodule "helpers/IATI-Rulesets"]
+	path = helpers/IATI-Rulesets
+	url = https://github.com/IATI/IATI-Rulesets.git
+[submodule "helpers/schemas/1.01"]
+	path = helpers/schemas/1.01
+	url = https://github.com/IATI/IATI-Schemas.git
+	branch = version-1.01
+[submodule "helpers/schemas/1.02"]
+	path = helpers/schemas/1.02
+	url = https://github.com/IATI/IATI-Schemas.git
+	branch = version-1.02
+[submodule "helpers/schemas/1.03"]
+	path = helpers/schemas/1.03
+	url = https://github.com/IATI/IATI-Schemas.git
+	branch = version-1.03
+[submodule "helpers/schemas/1.04"]
+	path = helpers/schemas/1.04
+	url = https://github.com/IATI/IATI-Schemas.git
+	branch = version-1.04
+[submodule "helpers/schemas/1.05"]
+	path = helpers/schemas/1.05
+	url = https://github.com/IATI/IATI-Schemas.git
+	branch = version-1.05
+[submodule "helpers/schemas/2.01"]
+	path = helpers/schemas/2.01
+	url = https://github.com/IATI/IATI-Schemas.git
+	branch = version-2.01
+[submodule "helpers/schemas/2.02"]
+	path = helpers/schemas/2.02
+	url = https://github.com/IATI/IATI-Schemas.git
+	branch = version-2.02
+[submodule "helpers/schemas/2.03"]
+	path = helpers/schemas/2.03
+	url = https://github.com/IATI/IATI-Schemas.git
+	branch = version-2.03
