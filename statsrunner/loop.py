@@ -1,4 +1,5 @@
 from collections import namedtuple
+import datetime
 import os
 import inspect
 import json
@@ -138,7 +139,20 @@ def process_file((inputfile, output_dir, folder, xmlfile, args)):
         statsrunner.aggregate.aggregate_file(stats_module, stats_json, os.path.join(output_dir, 'aggregated-file', folder, xmlfile))
 
 
-def fetch_and_process_file(dataset_name, args):
+def fetch_and_process_file(dataset_name):
+    args = {
+        'multi': 1,
+        'stats_module': 'stats.dashboard',
+        'strict': False,
+        'new': False,
+        'debug': False,
+        'output': '',
+        'folder': None,
+        'data': 'data',
+        'today': datetime.date.today(),
+        'verbose_loop': False,
+    }
+    args = namedtuple('Namespace', args.keys())(*args.values())
     api_url = 'https://iatiregistry.org/api/3/action/package_show'
     response = requests.post(api_url, data={'id': dataset_name}).json()
     if not response.get('success', False):
@@ -183,15 +197,11 @@ def loop(args):
     Args:
         args: Object containing program run options (set by CLI arguments at runtime. See __init__ for more details).
     """
-    args = vars(args)
-    del args['func']
-    args = namedtuple('Namespace', args.keys())(*args.values())
-
     api_url = 'https://iatiregistry.org/api/3/action/package_list'
     dataset_names = requests.post(api_url).json()['result']
     random.shuffle(dataset_names)
     q = Queue(connection=conn, default_timeout=600)
     for dataset_name in dataset_names:
         q.enqueue(fetch_and_process_file,
-                  args=(dataset_name, args),
+                  dataset_name,
                   result_ttl=0)
