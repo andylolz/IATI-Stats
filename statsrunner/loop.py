@@ -11,6 +11,7 @@ from urllib import urlretrieve
 from lxml import etree
 import requests
 from rq import Queue
+import sentry_sdk
 
 import statsrunner.shared
 import statsrunner.aggregate
@@ -140,6 +141,7 @@ def process_file((inputfile, output_dir, folder, xmlfile, args)):
 
 
 def fetch_and_process_file(dataset_name):
+    sentry_sdk.init(os.getenv('SENTRY_DSN'))
     args = {
         'multi': 1,
         'stats_module': 'stats.dashboard',
