@@ -1,3 +1,4 @@
+from collections import namedtuple
 import os
 import inspect
 import json
@@ -182,6 +183,9 @@ def loop(args):
     Args:
         args: Object containing program run options (set by CLI arguments at runtime. See __init__ for more details).
     """
+    args = vars(args)
+    del args['func']
+    args = namedtuple('Namespace', args.keys())(*args.values())
 
     api_url = 'https://iatiregistry.org/api/3/action/package_list'
     dataset_names = requests.post(api_url).json()['result']
