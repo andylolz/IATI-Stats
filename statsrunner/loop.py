@@ -1,14 +1,18 @@
 import os
-from lxml import etree
 import inspect
 import json
+import random
 import sys
 import traceback
+from urllib import urlretrieve
+
+from lxml import etree
+import requests
 from rq import Queue
+
 import statsrunner.shared
 import statsrunner.aggregate
 from statsrunner.common import decimal_default
-
 from worker import conn
 
 
@@ -133,6 +137,30 @@ def process_file((inputfile, output_dir, folder, xmlfile, args)):
         statsrunner.aggregate.aggregate_file(stats_module, stats_json, os.path.join(output_dir, 'aggregated-file', folder, xmlfile))
 
 
+def fetch_and_process_file(dataset_name, args):
+    api_url = 'https://iatiregistry.org/api/3/action/package_show'
+    response = requests.post(api_url, data={'id': dataset_name}).json()
+    if not response.get('success', False):
+        # something went wrong
+        return
+    meta = response.get('result', {})
+    res = meta.get('resources', [])
+    org = meta.get('organization')
+    if res == [] or not org:
+        return
+    org_name = org.get('name')
+    url = res[0]['url']
+    xmlfile = dataset_name + '.xml'
+    path_to_file = os.path.join(args.data, org_name, xmlfile)
+    try:
+        os.makedirs(os.path.join(args.data, org_name))
+    except OSError:
+        pass
+    urlretrieve(url, path_to_file)
+    process_file((path_to_file, args.output, org_name,
+                  xmlfile, args))
+
+
 def loop_folder(folder, args, data_dir, output_dir):
     """Given a folder, returns a list of XML files in folder."""
     if not os.path.isdir(os.path.join(data_dir, folder)) or folder == '.git':
@@ -154,13 +182,12 @@ def loop(args):
     Args:
         args: Object containing program run options (set by CLI arguments at runtime. See __init__ for more details).
     """
-    if args.folder:
-        files = loop_folder(args.folder, args, data_dir=args.data, output_dir=args.output)
-    else:
-        files = []
-        for folder in os.listdir(args.data):
-            files += loop_folder(folder, args, data_dir=args.data, output_dir=args.output)
 
-    q = Queue(connection=conn)
-    for file in files:
-        q.enqueue(process_file, file, result_ttl=0)
+    api_url = 'https://iatiregistry.org/api/3/action/package_list'
+    dataset_names = requests.post(api_url).json()['result']
+    random.shuffle(dataset_names)
+    q = Queue(connection=conn, default_timeout=600)
+    for dataset_name in dataset_names:
+        q.enqueue(fetch_and_process_file,
+                  args=(dataset_name, args),
+                  result_ttl=0)

@@ -1,11 +1,15 @@
 from collections import defaultdict
 import inspect
+from io import BytesIO
 import json
 import os
 import copy
 import decimal
 import statsrunner
 import datetime
+
+import boto3
+
 from statsrunner import common
 
 
@@ -61,14 +65,18 @@ def aggregate_file(stats_module, stats_json, output_dir):
         dict_sum_inplace(subtotal, activity_json)
     dict_sum_inplace(subtotal, stats_json['file'])
 
-    try:
-        os.makedirs(output_dir)
-    except OSError:
-        pass
+    s3 = boto3.client('s3')
+    bucket_name = os.getenv('S3_BUCKET_NAME')
     for aggregate_name, aggregate in subtotal.items():
-        with open(os.path.join(output_dir, aggregate_name+'.json'), 'w') as fp:
-            json.dump(aggregate, fp, sort_keys=True, indent=2, default=decimal_default)
-
+        output_filepath = os.path.join(output_dir, aggregate_name+'.json')
+        s3.upload_fileobj(
+            BytesIO(json.dumps(
+                aggregate, sort_keys=True,
+                indent=2, default=decimal_default).encode('utf-8')),
+            bucket_name,
+            output_filepath,
+            ExtraArgs={'ACL': 'public-read',
+                       'ContentType': 'application/json'})
     return subtotal
 
 
