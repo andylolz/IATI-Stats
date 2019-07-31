@@ -146,7 +146,7 @@ def fetch_and_process_file(dataset_name):
         'strict': False,
         'new': False,
         'debug': False,
-        'output': '',
+        'output': 'current',
         'folder': None,
         'data': 'data',
         'today': datetime.date.today(),
@@ -165,8 +165,8 @@ def fetch_and_process_file(dataset_name):
         return
     org_name = org.get('name')
     url = res[0]['url']
-    xmlfile = dataset_name + '.xml'
-    path_to_file = os.path.join(args.data, org_name, xmlfile)
+    xmlfile = dataset_name
+    path_to_file = os.path.join(args.data, org_name, xmlfile + '.xml')
     try:
         os.makedirs(os.path.join(args.data, org_name))
     except OSError:
