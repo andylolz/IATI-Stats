@@ -5,7 +5,6 @@ import statsrunner.invert
 import datetime
 import re
 
-
 def parse_date(x):
     xsDateRegex = re.compile('(-?[0-9]{4,})-([0-9]{2})-([0-9]{2})')
     m = xsDateRegex.match(x)
