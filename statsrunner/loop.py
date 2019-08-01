@@ -6,7 +6,6 @@ import json
 import random
 import sys
 import traceback
-from urllib import urlretrieve
 
 from lxml import etree
 import requests
@@ -171,7 +170,16 @@ def fetch_and_process_file(dataset_name):
         os.makedirs(os.path.join(args.data, org_name))
     except OSError:
         pass
-    urlretrieve(url, path_to_file)
+    headers = {
+        'Accept': 'application/xhtml+xml,application/xml,*/*;q=0.9',
+        'User-Agent': 'IATI Stats',
+    }
+    requests.packages.urllib3.disable_warnings()
+    res = requests.get(url, headers=headers, verify=False)
+    if res.status_code == 200:
+        with open(path_to_file, 'wb') as handler:
+            for chunk in res:
+                handler.write(chunk)
     process_file((path_to_file, args.output, org_name,
                   xmlfile, args))
 
