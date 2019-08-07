@@ -3,7 +3,7 @@ out
 gitout
 .coverage
 gitdate.json
-
+.env
 
 pyenv
 *.pyc

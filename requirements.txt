@@ -12,3 +12,4 @@ redis==3.3.2
 requests==2.22.0
 rq==1.1.0
 sentry-sdk==0.10.2
+python-dotenv==0.10.3
