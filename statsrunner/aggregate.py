@@ -10,8 +10,10 @@ import datetime
 
 import boto3
 import requests
+from rq import Queue
 
 from statsrunner import common
+from worker import conn
 
 
 def decimal_default(obj):
@@ -108,7 +110,7 @@ def list_bucket(prefix):
     return all_files
 
 
-def aggregate(args):
+def run_aggregate(args):
     import importlib
     stats_module = importlib.import_module(args.stats_module)
 
@@ -188,3 +190,10 @@ def aggregate(args):
             aggregate, sort_keys=True,
             indent=2, default=decimal_default).encode('utf-8'))
         save_json_file(data, filepath)
+
+
+def aggregate(args):
+    q = Queue(connection=conn, default_timeout=600)
+    q.enqueue(run_aggregate,
+              args,
+              result_ttl=0)
