@@ -22,8 +22,8 @@ def calculate_stats():
         help="Follow the schema strictly. (This is not currently used by the dashboard stats).",
         action="store_true")
     parser.add_argument("--output",
-        help="Output directory. Defaults to out",
-        default='out')
+        help="Output directory. Defaults to current",
+        default='current')
     parser.add_argument("--multi",
         help="Number of processes to use. Defaults to 1",
         default=1,
