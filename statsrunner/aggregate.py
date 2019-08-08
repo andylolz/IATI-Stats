@@ -9,6 +9,7 @@ import statsrunner
 import datetime
 
 import boto3
+import requests
 
 from statsrunner import common
 
@@ -65,30 +66,57 @@ def aggregate_file(stats_module, stats_json, output_dir):
         dict_sum_inplace(subtotal, activity_json)
     dict_sum_inplace(subtotal, stats_json['file'])
 
+    for aggregate_name, aggregate in subtotal.items():
+        filepath = os.path.join(output_dir, aggregate_name+'.json')
+        data = BytesIO(json.dumps(
+            aggregate, sort_keys=True,
+            indent=2, default=decimal_default).encode('utf-8'))
+        save_json_file(data, filepath)
+    return subtotal
+
+
+def save_json_file(data, filepath):
     s3 = boto3.client('s3')
     bucket_name = os.getenv('S3_BUCKET_NAME')
-    for aggregate_name, aggregate in subtotal.items():
-        output_filepath = os.path.join(output_dir, aggregate_name+'.json')
-        s3.upload_fileobj(
-            BytesIO(json.dumps(
-                aggregate, sort_keys=True,
-                indent=2, default=decimal_default).encode('utf-8')),
-            bucket_name,
-            output_filepath,
-            ExtraArgs={'ACL': 'public-read',
-                       'ContentType': 'application/json'})
-    return subtotal
+    s3.upload_fileobj(
+        data,
+        bucket_name,
+        filepath,
+        ExtraArgs={'ACL': 'public-read',
+                   'ContentType': 'application/json'})
+
+
+def list_bucket(prefix):
+    s3 = boto3.client('s3')
+    bucket_name = os.getenv('S3_BUCKET_NAME')
+    start_after = ''
+    all_files = []
+    max_keys = 1000
+    while True:
+        data = s3.list_objects_v2(
+            Bucket=bucket_name,
+            Prefix=prefix,
+            Delimiter='/',
+            MaxKeys=max_keys,
+            StartAfter=start_after)
+        folders = [x['Prefix'] for x in data.get('CommonPrefixes', [])]
+        files = [x['Key'] for x in data.get('Contents', [])]
+        all_files += folders + files
+        if len(all_files) % max_keys != 0:
+            break
+        start_after = folders[-1]
+    return all_files
 
 
 def aggregate(args):
     import importlib
     stats_module = importlib.import_module(args.stats_module)
 
-    for newdir in ['aggregated-publisher', 'aggregated-file', 'aggregated']:
-        try:
-            os.mkdir(os.path.join(args.output, newdir))
-        except OSError:
-            pass
+    # for newdir in ['aggregated-publisher', 'aggregated-file', 'aggregated']:
+    #     try:
+    #         os.mkdir(os.path.join(args.output, newdir))
+    #     except OSError:
+    #         pass
 
     blank = make_blank(stats_module)
 
@@ -97,30 +125,27 @@ def aggregate(args):
     else:
         base_folder = os.path.join(args.output, 'aggregated-file')
     total = copy.deepcopy(blank)
-    for folder in os.listdir(base_folder):
+    for path in list_bucket(base_folder + '/'):
+        folder = path[:-1].rsplit('/', 1)[-1]
         publisher_total = copy.deepcopy(blank)
 
-        for jsonfilefolder in os.listdir(os.path.join(base_folder, folder)):
-            if args.verbose_loop:
-                with open(os.path.join(base_folder, folder, jsonfilefolder)) as jsonfp:
-                    stats_json = json.load(jsonfp, parse_float=decimal.Decimal)
-                    subtotal = aggregate_file(stats_module,
-                                              stats_json,
-                                              os.path.join(args.output,
-                                                           'aggregated-file',
-                                                           folder,
-                                                           jsonfilefolder))
-            else:
-                subtotal = copy.deepcopy(blank)
-                for jsonfile in os.listdir(os.path.join(base_folder,
-                                                        folder,
-                                                        jsonfilefolder)):
-                    with open(os.path.join(base_folder,
-                                           folder,
-                                           jsonfilefolder,
-                                           jsonfile)) as jsonfp:
-                        stats_json = json.load(jsonfp, parse_float=decimal.Decimal)
-                        subtotal[jsonfile[:-5]] = stats_json
+        for jsonfilefolder in list_bucket(path):
+            # if args.verbose_loop:
+            #     with open(os.path.join(base_folder, folder, jsonfilefolder)) as jsonfp:
+            #         stats_json = json.load(jsonfp, parse_float=decimal.Decimal)
+            #         subtotal = aggregate_file(stats_module,
+            #                                   stats_json,
+            #                                   os.path.join(args.output,
+            #                                                'aggregated-file',
+            #                                                folder,
+            #                                                jsonfilefolder))
+            # else:
+            subtotal = copy.deepcopy(blank)
+            for jsonfile in list_bucket(jsonfilefolder):
+                url = 'http://stats.codeforiati.org/' + jsonfile
+                r = requests.get(url)
+                stats_json = json.load(BytesIO(r.content), parse_float=decimal.Decimal)
+                subtotal[jsonfile.rsplit('/', 1)[-1][:-5]] = stats_json
 
             dict_sum_inplace(publisher_total, subtotal)
 
@@ -135,15 +160,18 @@ def aggregate(args):
 
         dict_sum_inplace(total, publisher_total)
         for aggregate_name, aggregate in publisher_total.items():
-            try:
-                os.mkdir(os.path.join(args.output, 'aggregated-publisher', folder))
-            except OSError:
-                pass
-            with open(os.path.join(args.output,
-                                   'aggregated-publisher',
-                                   folder,
-                                   aggregate_name+'.json'), 'w') as fp:
-                json.dump(aggregate, fp, sort_keys=True, indent=2, default=decimal_default)
+            # try:
+            #     os.mkdir(os.path.join(args.output, 'aggregated-publisher', folder))
+            # except OSError:
+            #     pass
+            filepath = os.path.join(args.output,
+                                    'aggregated-publisher',
+                                    folder,
+                                    aggregate_name+'.json')
+            data = BytesIO(json.dumps(
+                aggregate, sort_keys=True,
+                indent=2, default=decimal_default).encode('utf-8'))
+            save_json_file(data, filepath)
 
     all_stats = stats_module.AllDataStats()
     all_stats.aggregated = total
@@ -153,7 +181,10 @@ def aggregate(args):
         total[name] = function()
 
     for aggregate_name, aggregate in total.items():
-        with open(os.path.join(args.output,
-                               'aggregated',
-                               aggregate_name+'.json'), 'w') as fp:
-            json.dump(aggregate, fp, sort_keys=True, indent=2, default=decimal_default)
+        filepath = os.path.join(args.output,
+                                'aggregated',
+                                aggregate_name+'.json')
+        data = BytesIO(json.dumps(
+            aggregate, sort_keys=True,
+            indent=2, default=decimal_default).encode('utf-8'))
+        save_json_file(data, filepath)
